@@ -973,6 +973,7 @@ export class NativePushNotificationService {
     const payload: JsonObject = { aps };
     if (parcelId) {
       aps['thread-id'] = parcelId;
+      aps['interruption-level'] = 'time-sensitive';
       payload.parcel_id = parcelId;
     }
     return payload;

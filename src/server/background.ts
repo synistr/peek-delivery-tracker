@@ -62,7 +62,8 @@ function initialState(): BackgroundState {
 /** When the schedule's current window opened: the last even minute by day, the hour overnight. */
 export function syncWindowStart(now = new Date()): Date {
   const local = DateTime.fromJSDate(now, { zone: 'Europe/Zurich' });
-  const start = local.hour >= 8 && local.hour < 22
+  // fkeil: Läufe alle 2 Minuten schon ab 7 Uhr, für die UPS-Pakete (trackingSync.ts).
+  const start = local.hour >= 7 && local.hour < 22
     ? local.startOf('minute').minus({ minutes: local.minute % 2 })
     : local.startOf('hour');
   return start.toJSDate();
@@ -72,7 +73,8 @@ export function secondsUntilNextSync(now = new Date()): number {
   if (!Number.isFinite(now.getTime())) throw new TypeError('Sync clock must be valid');
   const local = DateTime.fromJSDate(now, { zone: 'Europe/Zurich' });
   let candidate: DateTime;
-  if (local.hour >= 8 && local.hour < 22) {
+  // fkeil: ab 7 Uhr, wie syncWindowStart.
+  if (local.hour >= 7 && local.hour < 22) {
     const minutes = 2 - (local.minute % 2);
     candidate = local.startOf('minute').plus({ minutes });
   } else {

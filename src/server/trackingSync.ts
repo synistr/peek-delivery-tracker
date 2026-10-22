@@ -298,13 +298,15 @@ function isScheduledTrackingSyncDue(
   const opens = delivering ? deliveryWindowOpens(parcel) : null;
   const lastMile = delivering && !minimum && answeredByCarrier(parcel)
     && (opens === null || now.getTime() >= opens - BEFORE_WINDOW_MS);
-  const intervalMinutes = !lastMile ? Math.max(10, minimum ?? 0)
+  // fkeil: UPS-Pakete mit eigener UPS-Antwort (offizielle API) tagsüber alle 3 Minuten, ab 7 Uhr, ohne Rückfall auf stündlich.
+  const urgent = parcel.carrier === 'ups' && answeredByCarrier(parcel);
+  const intervalMinutes = urgent && !lastMile ? 3 : !lastMile ? Math.max(10, minimum ?? 0)
     : checkedInBrowser(parcel) ? BROWSER_LAST_MILE_MINUTES : LAST_MILE_MINUTES;
   const activity = lastActivity(parcel);
   const idleAfter = NOT_YET_MOVING.has(String(parcel.current_stage)) ? EARLY_IDLE_AFTER_MS : IDLE_AFTER_MS;
-  const idle = unwatched || (activity !== null && now.getTime() - activity >= idleAfter);
+  const idle = unwatched || (!urgent && activity !== null && now.getTime() - activity >= idleAfter);
   // Compare schedule windows so request duration does not skip the next tick.
-  const windowStart = !idle && local.hour >= 8 && local.hour < 22
+  const windowStart = !idle && local.hour >= (urgent ? 7 : 8) && local.hour < 22
     ? local.startOf('minute').minus({ minutes: local.minute % intervalMinutes })
     : hourStart;
   return lastChecked < windowStart.toMillis();
