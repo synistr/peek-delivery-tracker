@@ -413,13 +413,32 @@ function notificationDetail(row: JsonObject, locale: Locale, now: number): strin
  * The line under the title: what leads it (the parcel's name, for whoever may
  * read it), then the detail, then the scan's place on a line of its own.
  */
+/** fkeil: wann das Paket kommt, in Peeks Worten wie in notificationDetail; leer, solange kein kommender Tag bekannt ist. */
+function notificationArrival(row: JsonObject, locale: Locale, now: number): string {
+  if (!ETA_NOTIFICATION_STAGES.has(stringField(row, 'stage'))) return '';
+  const expected = expectedDelivery(row.expected_delivery, locale, stringField(row, 'timezone') || 'Europe/Zurich', now);
+  if (!expected) return '';
+  const changed = row.expected_delivery_changed === true ? 'eta_changed' : 'eta';
+  return PUSH_COPY[locale][`${changed}_${expected.dated ? 'date' : 'day'}`]!.replace('{{date}}', expected.text);
+}
+
+/** fkeil: der Titel der Mitteilungen eines Kontos: der Name des Pakets, ohne Namen Peeks Wort zur Stufe. */
+function notificationHeading(row: JsonObject, locale: Locale): string {
+  return notificationText(row.label, 80) || notificationTitle(row, locale);
+}
+
 function notificationBody(row: JsonObject, locale: Locale, now: number, lead = row.label): string {
   const name = notificationText(lead, 80);
-  const detail = notificationDetail(row, locale, now);
-  const primary = notificationText(name ? `${name} · ${detail}` : capitalized(detail, languageTags[locale]), 220);
+  // fkeil: je eine Zeile: was vorangeht (bei Konten nichts, ihr Titel ist der Name; bei Geschenk-Links die Stufe),
+  // was der Paketdienst schreibt ("Abhol Scan"; Peeks Satz zur Stufe nur ohne diesen Text), Ort und, neben dem
+  // Text des Paketdienstes, wann es kommt (ohne ihn sagt das schon Peeks Satz).
+  const said = notificationText(row.description, 139);
+  const detail = said || notificationText(capitalized(notificationDetail(row, locale, now), languageTags[locale]), 139);
+  const primary = name ? `${name}\n${detail}` : detail;
   const remaining = 220 - [...primary].length - 1;
   const location = remaining > 1 ? notificationText(row.location, Math.min(140, remaining)) : '';
-  return location ? `${primary}\n${location}` : primary;
+  const arrival = said ? capitalized(notificationArrival(row, locale, now), languageTags[locale]) : '';
+  return [primary, location, arrival].filter(Boolean).join('\n');
 }
 
 // Database insertion times are identical for events imported in one transaction.
@@ -659,8 +678,8 @@ export class WebPushNotificationService {
     const locale = notificationLocale(row.locale);
     const packageId = stringField(row, 'package_id');
     return {
-      title: notificationTitle(row, locale),
-      body: notificationBody(row, locale, this.now()),
+      title: notificationHeading(row, locale),
+      body: notificationBody(row, locale, this.now(), ''),
       ...WEB_NOTIFICATION_PICTURES,
       tag: `parcel-${packageId}`,
       lang: locale,
@@ -1020,8 +1039,8 @@ export class NativePushNotificationService {
   eventPayload(row: JsonObject): JsonObject {
     const locale = this.locale(row);
     return this.payload(
-      notificationTitle(row, locale),
-      notificationBody(row, locale, this.now() * 1_000),
+      notificationHeading(row, locale),
+      notificationBody(row, locale, this.now() * 1_000, ''),
       stringField(row, 'package_id'),
     );
   }
@@ -1035,6 +1054,7 @@ export class NativePushNotificationService {
     const payload: JsonObject = { aps };
     if (parcelId) {
       aps['thread-id'] = parcelId;
+      aps['interruption-level'] = 'time-sensitive';
       payload.parcel_id = parcelId;
     }
     return payload;

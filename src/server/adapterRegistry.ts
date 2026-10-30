@@ -2,6 +2,7 @@ import 'server-only';
 
 import { AdapterRegistry, TrawlClient, REGISTRY, type AdapterEnvironment } from 'universal-parcel-scraper/node';
 import { hostStepRecorder } from './stepRecorder';
+import { withUpsApi } from './upsApi';
 
 /**
  * The environment this server hands to every carrier adapter: the private
@@ -19,5 +20,5 @@ export function hostAdapterEnvironment(env: Record<string, string | undefined> =
 }
 
 export function createAdapterRegistry(environment: AdapterEnvironment = hostAdapterEnvironment()): AdapterRegistry {
-  return new AdapterRegistry(REGISTRY, environment);
+  return new AdapterRegistry(withUpsApi(REGISTRY), environment);
 }

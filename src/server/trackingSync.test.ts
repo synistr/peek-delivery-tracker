@@ -582,7 +582,9 @@ describe('fair scheduling', () => {
     expect(syncWindowStart(new Date('2026-07-15T07:03:30Z'))).toEqual(new Date('2026-07-15T07:02:00Z'));
     expect(syncWindowStart(new Date('2026-07-15T20:30:00Z'))).toEqual(new Date('2026-07-15T20:20:00Z'));
     expect(secondsUntilNextSync(new Date('2026-07-15T20:15:00Z'))).toBe(300);
-    expect(secondsUntilNextSync(new Date('2026-07-16T05:50:00Z'))).toBe(600);
+    // fkeil: Peeks Tag beginnt um 7 Uhr (fork.sh, background.ts): um 7:50 alle 2 Minuten, um 6:50 noch alle 20.
+    expect(secondsUntilNextSync(new Date('2026-07-16T05:50:00Z'))).toBe(120);
+    expect(secondsUntilNextSync(new Date('2026-07-16T04:50:00Z'))).toBe(600);
     expect(() => secondsUntilNextSync(new Date('invalid'))).toThrow('valid');
   });
 

@@ -105,6 +105,23 @@ function providerCode(row: JsonObject): string {
   return typeof code === 'string' ? code : '';
 }
 
+/**
+ * fkeil: UPS also moves a stored scan to another town (a KX scan: BERLIN, hours later
+ * Dahlwitz-Hoppegarten), where the scraper's policy only lets it add one. The same instant, UPS
+ * activity code and wording are the same scan, which then takes its stored row over (upsApi.test.ts).
+ */
+function withMovedUpsScans(sourceCarrierId: string, policy: SameInstantIdentityPolicy | undefined): SameInstantIdentityPolicy | undefined {
+  const matches = policy?.matches;
+  if (sourceCarrierId !== 'ups' || !policy || !matches) return policy;
+  const words = (value: string) => value.replace(/\s+/g, ' ').trim().toLocaleLowerCase('en-US');
+  return {
+    ...policy,
+    matches: (incoming, stored) => matches(incoming, stored) || (incoming.providerCode !== ''
+      && incoming.providerCode === stored.providerCode
+      && words(incoming.description) !== '' && words(incoming.description) === words(stored.description)),
+  };
+}
+
 function scanEvidence(row: JsonObject): SameInstantScan {
   return {
     stage: typeof row.stage === 'string' ? row.stage : '',
@@ -152,7 +169,7 @@ export function sameInstantIdentities(
   sourceCarrierId: string,
 ): Map<string, string> {
   const reused = new Map<string, string>();
-  const policy = sameInstantIdentityPolicy(sourceCarrierId, { supportsScanMatching: true });
+  const policy = withMovedUpsScans(sourceCarrierId, sameInstantIdentityPolicy(sourceCarrierId, { supportsScanMatching: true }));
   if (!policy || stored.length === 0) return reused;
   const prefixes = policy.storedSources.map((source) => `${source}:`);
   const storedIds = new Set(stored.map(identity));

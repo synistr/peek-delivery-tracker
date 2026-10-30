@@ -62,7 +62,8 @@ function initialState(): BackgroundState {
 
 /** Minutes between scheduled runs: every 2 by day, every 20 overnight. */
 function runMinutes(local: DateTime): number {
-  return local.hour >= 8 && local.hour < 22 ? 2 : 20;
+  // fkeil: Läufe alle 2 Minuten schon ab 7 Uhr, für die UPS-Pakete (trackingSync.ts).
+  return local.hour >= 7 && local.hour < 22 ? 2 : 20;
 }
 
 /** When the schedule's current window opened: the last even minute by day, the last :00, :20 or :40 overnight. */

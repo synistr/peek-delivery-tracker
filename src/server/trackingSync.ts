@@ -460,12 +460,14 @@ function isScheduledTrackingSyncDue(
   const opens = delivering ? deliveryWindowOpens(parcel) : null;
   const lastMile = delivering && !minimum && answeredByCarrier(parcel)
     && (opens === null || now.getTime() >= opens - BEFORE_WINDOW_MS);
-  const intervalMinutes = !lastMile ? Math.max(10, minimum ?? 0)
+  // fkeil: UPS-Pakete mit eigener UPS-Antwort (offizielle API) tagsüber alle 3 Minuten, ab 7 Uhr, ohne Rückfall auf stündlich.
+  const urgent = parcel.carrier === 'ups' && answeredByCarrier(parcel);
+  const intervalMinutes = urgent && !lastMile ? 3 : !lastMile ? Math.max(10, minimum ?? 0)
     : checkedInBrowser(parcel) ? BROWSER_LAST_MILE_MINUTES : LAST_MILE_MINUTES;
   const activity = lastActivity(parcel);
   const idleAfter = NOT_YET_MOVING.has(String(parcel.current_stage)) ? EARLY_IDLE_AFTER_MS : IDLE_AFTER_MS;
-  const idle = unwatched || (activity !== null && now.getTime() - activity >= idleAfter);
-  const byTheMinute = !idle && local.hour >= 8 && local.hour < 22;
+  const idle = unwatched || (!urgent && activity !== null && now.getTime() - activity >= idleAfter);
+  const byTheMinute = !idle && local.hour >= (urgent ? 7 : 8) && local.hour < 22;
   // After a failed check, the last mile waits LAST_MILE_BACKOFF_MS. Routing already holds a parcel
   // that long when its carrier's lookup fails; the error the check saved holds the others, a lookup
   // outside routing (Amazon Shipping) or the carrier's answer without the parcel's progress. The
